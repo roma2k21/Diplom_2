@@ -1,28 +1,23 @@
-import pytest
-import requests
-from helpers import CreateUser
-from data import Urls
-
-
 class TestListOrder:
-    def test_get_list_order_autorization_user(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        response_ingridients = requests.get(Urls.URL + Urls.INGREDIENTS)
-        payload_ingridients = {"ingredients": [response_ingridients.json()["data"][0]["_id"]]}
-        requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients, headers={"Authorization": response.json()["accessToken"]})
-        response_order_user = requests.get(Urls.URL + Urls.CREATE_ORDER, headers={"Authorization": response.json()["accessToken"]})
+    def test_get_list_order_authorization_user(self, order_methods, authorization):
+        response_ingridients = order_methods.get_ingredients()
+        order_methods.create_order(
+            payload={
+                "ingredients": [response_ingridients["data"][0]["_id"]]
+            },
+            token=authorization
+        )
+        response_order_list = order_methods.get_list_order(token=authorization)
 
-        assert response_order_user.status_code == 200 and 'success' in response.text
+        assert response_order_list.status_code == 200 and response_order_list.json()["success"] == True
 
-    def test_get_list_order_no_autorization_user(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        response_ingridients = requests.get(Urls.URL + Urls.INGREDIENTS)
-        payload_ingridients = {"ingredients": [response_ingridients.json()["data"][0]["_id"]]}
-        requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients, headers={"Authorization": response.json()["accessToken"]})
-        response_order_user = requests.get(Urls.URL + Urls.CREATE_ORDER)
+    def test_get_list_order_no_authorization_user(self, order_methods):
+        response_ingridients = order_methods.get_ingredients()
+        order_methods.create_order(
+            payload={
+                "ingredients": [response_ingridients["data"][0]["_id"]]
+            }
+        )
+        response_order_list = order_methods.get_list_order()
 
-        assert response_order_user.status_code == 401 and 'true' in response.text
+        assert response_order_list.status_code == 401 and response_order_list.json()["success"] == False

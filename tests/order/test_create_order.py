@@ -1,44 +1,38 @@
 import pytest
-import requests
-from helpers import CreateUser
-from data import Urls
 
 
 class TestCreateOrder:
-    def test_create_order_success(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        response_ingridients = requests.get(Urls.URL + Urls.INGREDIENTS)
-        payload_ingridients = {"ingredients": [response_ingridients.json()["data"][0]["_id"]]}
-        response_order = requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients, headers={"Authorization": response.json()["accessToken"]})
+    def test_create_order_success(self, order_methods, authorization):
+        response_ingredients = order_methods.get_ingredients()
+        response_order = order_methods.create_order(
+            payload={
+                "ingredients": [response_ingredients["data"][0]["_id"]]
+            },
+            token=authorization
+        )
+        assert response_order[0].status_code == 200 and "true" in response_order[0].text
 
-        assert response_order.status_code == 200 and "true" in response_order.text
+    def test_create_order_no_authorization(self, order_methods):
+        response_ingridients = order_methods.get_ingredients()
+        response_order = order_methods.create_order(
+            payload={
+                "ingredients": [response_ingridients["data"][0]["_id"]]
+            }
+        )
 
-    def test_create_order_no_autorization(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        response_ingridients = requests.get(Urls.URL + Urls.INGREDIENTS)
-        payload_ingridients = {"ingredients": [response_ingridients.json()["data"][0]["_id"]]}
-        response_order = requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients)
+        assert response_order[0].status_code == 200 and 'true' in response_order[0].text
 
-        assert response_order.status_code == 200 and 'true' in response_order.text
-
-    def test_create_order_no_ingredients(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        payload_ingridients = {"ingredients": []}
-        response_order = requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients, headers={"Authorization": response.json()["accessToken"]})
-
-        assert response_order.status_code == 400 and 'true' in response.text
-
-    def test_create_order_invalid_hesh(self):
-        login_password = CreateUser.register_new_user_and_return_login_password()
-        payload = {"email": login_password[0], "password": login_password[1]}
-        response = requests.post(Urls.URL + Urls.LOGIN_USER, data=payload)
-        payload_ingridients = {"ingredients": ["61c0c5a71d1f820"]}
-        response_order = requests.post(Urls.URL + Urls.CREATE_ORDER, data=payload_ingridients, headers={"Authorization": response.json()["accessToken"]})
-
-        assert response_order.status_code == 500 and "Internal Server Error" in response_order.text
+    @pytest.mark.parametrize(
+        'payload, expected_status_code, expected_text',
+        [
+            ({"ingredients": []}, 400, 'false'),
+            ({"ingredients": ["61c0c5a71d1f820"]}, 500, 'Internal Server Error')
+        ],
+        ids=[
+            'no_ingredients',
+            'invalid_hash',
+        ]
+    )
+    def test_create_order_invalid_ingredients(self, order_methods, authorization, payload, expected_status_code, expected_text):
+        response_order = order_methods.create_order(payload=payload, token=authorization)
+        assert response_order[0].status_code == expected_status_code and expected_text in response_order[0].text

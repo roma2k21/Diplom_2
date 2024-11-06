@@ -34,4 +34,4 @@ class CreateUser:
             login_pass.append(password)
             login_pass.append(name)
         # возвращаем список
-        return login_pass
+        return login_pass, response

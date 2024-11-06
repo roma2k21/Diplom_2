@@ -5,3 +5,9 @@ class Urls:
     LOGIN_USER = '/auth/login'
     CREATE_ORDER = '/orders'
     INGREDIENTS = '/ingredients'
+
+
+user_data = {
+    'login': None,
+    'password': None,
+}
